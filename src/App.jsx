@@ -338,15 +338,17 @@ function TabKandidat({ kandidat, refreshKandidat, pakaiDemo, adminKey }) {
   const bariskan = (t) => String(t || "").split("\n").map((s) => s.trim()).filter(Boolean);
 
   async function simpan(form) {
+    const namaBersih = (form.nama || "").trim();
+    if (!namaBersih) { setError("Nama kandidat wajib diisi."); return; }
     setLoading(true); setError("");
-    const payload = { nomorUrut: Number(form.nomorUrut) || kandidat.length + 1, nama: form.nama, fotoUrl: form.fotoUrl, visi: form.visi, misi: bariskan(form.misi), programKerja: bariskan(form.programKerja) };
+    const payload = { nomorUrut: Number(form.nomorUrut) || kandidat.length + 1, nama: namaBersih, fotoUrl: (form.fotoUrl || "").trim(), visi: form.visi, misi: bariskan(form.misi), programKerja: bariskan(form.programKerja) };
     try {
       if (pakaiDemo) { setError("Backend belum konek — perubahan tidak permanen."); }
       else if (editId) { await api.editKandidat(adminKey, editId, payload); }
       else { await api.tambahKandidat(adminKey, payload); }
       await refreshKandidat();
       setFormTerbuka(false); setEditId(null);
-    } catch (e) { setError(e.message || "Gagal menyimpan kandidat."); }
+    } catch (e) { setError("Gagal simpan: " + (e.message || "tidak diketahui")); }
     finally { setLoading(false); }
   }
   async function hapus(id) {
@@ -382,29 +384,34 @@ function TabKandidat({ kandidat, refreshKandidat, pakaiDemo, adminKey }) {
 
 function TabToken({ pakaiDemo, adminKey }) {
   const [token, setToken] = useState([]);
-  const [jumlahGenInput, setJumlahGenInput] = useState("10");
+  const [inputManual, setInputManual] = useState("");
   const [error, setError] = useState("");
   const [pesan, setPesan] = useState("");
   const [loading, setLoading] = useState(false);
   const fileRef = useRef(null);
 
-  async function muatToken() { if (pakaiDemo) return; try { setToken(await api.getSemuaToken(adminKey)); } catch (e) { setError(e.message); } }
+  async function muatToken() { if (pakaiDemo) return; try { setToken(await api.getSemuaToken(adminKey)); } catch (e) { setError("Gagal muat token: " + e.message); } }
   useEffect(() => { muatToken(); }, []); // eslint-disable-line
 
-  async function generate() {
+  function parseKodeList(teks) {
+    return teks.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+  }
+
+  async function tambahManual() {
+    const kodeList = parseKodeList(inputManual);
+    if (kodeList.length === 0) { setError("Isi minimal satu kode token."); return; }
     setError(""); setPesan(""); setLoading(true);
-    const jumlah = Math.max(1, parseInt(jumlahGenInput, 10) || 1);
     try {
       if (pakaiDemo) {
-        const baru = Array.from({ length: jumlah }, (_, i) => ({ kode: Math.random().toString(36).slice(2, 8).toUpperCase() + i, dipakai: false }));
-        setToken((p) => [...p, ...baru]);
-        setPesan(`${jumlah} token dibuat (mode demo, tidak permanen).`);
+        setToken((p) => [...p, ...kodeList.map((k) => ({ kode: k.toUpperCase(), dipakai: false }))]);
+        setPesan(`${kodeList.length} token ditambahkan (mode demo, tidak permanen).`);
       } else {
-        const baru = await api.generateToken(adminKey, jumlah);
-        setToken((p) => [...p, ...baru]);
-        setPesan(`${baru.length} token berhasil dibuat.`);
+        const r = await api.importToken(adminKey, kodeList);
+        await muatToken();
+        setPesan(`${r.totalDitambah} token berhasil ditambahkan. ${r.totalDilewati} dilewati (duplikat).`);
       }
-    } catch (e) { setError(e.message || "Gagal membuat token."); }
+      setInputManual("");
+    } catch (e) { setError("Gagal tambah token: " + (e.message || "tidak diketahui")); }
     finally { setLoading(false); }
   }
 
@@ -427,7 +434,7 @@ function TabToken({ pakaiDemo, adminKey }) {
         await muatToken();
         setPesan(`${r.totalDitambah} token berhasil diimpor. ${r.totalDilewati} dilewati (duplikat).`);
       }
-    } catch (e) { setError(e.message || "Gagal membaca file."); }
+    } catch (e) { setError("Gagal impor file: " + (e.message || "tidak diketahui")); }
     finally { setLoading(false); if (fileRef.current) fileRef.current.value = ""; }
   }
 
@@ -436,14 +443,13 @@ function TabToken({ pakaiDemo, adminKey }) {
       {error && <div style={{ color: "#ffb0b0", fontSize: 12.5, marginBottom: 12 }}>{error}</div>}
       {pesan && <div style={{ color: "var(--gold-soft)", fontSize: 12.5, marginBottom: 12 }}>{pesan}</div>}
       <div style={{ marginBottom: 18 }}>
-        <label className="ec-label">Buat Token Otomatis</label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input className="ec-input" style={{ flex: 1 }} inputMode="numeric" value={jumlahGenInput} onChange={(e) => setJumlahGenInput(e.target.value.replace(/[^0-9]/g, ""))} placeholder="Jumlah" />
-          <button className="ec-btn solid" onClick={generate} disabled={loading}><Plus size={15} /> Buat</button>
-        </div>
+        <label className="ec-label">Input Token Manual</label>
+        <p style={{ fontSize: 12, color: "var(--text-lo)", marginBottom: 8 }}>Ketik kode token, pisah pakai baris baru atau koma.</p>
+        <textarea className="ec-textarea" value={inputManual} onChange={(e) => setInputManual(e.target.value)} placeholder={"A1B2C3\nD4E5F6"} />
+        <button className="ec-btn solid" style={{ marginTop: 8 }} onClick={tambahManual} disabled={loading}><Plus size={15} /> Tambah Token</button>
       </div>
       <div style={{ marginBottom: 18 }}>
-        <label className="ec-label">Import dari Excel/CSV</label>
+        <label className="ec-label">Atau Import dari Excel/CSV</label>
         <p style={{ fontSize: 12, color: "var(--text-lo)", marginBottom: 8 }}>Kolom pertama file diisi daftar kode token, satu kode per baris.</p>
         <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={importFile} disabled={loading} style={{ fontSize: 12.5, color: "var(--text-lo)" }} />
       </div>
@@ -474,7 +480,7 @@ function TabKunci({ pakaiDemo, adminKey }) {
     try {
       if (pakaiDemo) { setDibuka(target); }
       else { const r = await api.setPemilihanStatus(adminKey, target); setDibuka(r.pemilihanDibuka); }
-    } catch (e) { setError(e.message || "Gagal mengubah status."); }
+    } catch (e) { setError("Gagal ubah status: " + (e.message || "tidak diketahui") + " — cek ADMIN_KEY di Railway sama Vercel harus sama persis."); }
     finally { setLoading(false); }
   }
 
