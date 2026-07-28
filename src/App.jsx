@@ -6,7 +6,7 @@ import {
 import * as XLSX from "xlsx";
 import * as api from "./api";
 
-const WEB_UTAMA_URL = "https://englishcommunity.example.com";
+const WEB_UTAMA_URL = "https://englishcommunitysmkn10garut-m9hfi5u6s.vercel.app";
 
 const GlobalStyle = () => (
   <style>{`
