@@ -48,6 +48,12 @@ export const generateToken = (adminKey, jumlah) =>
     headers: { "x-admin-key": adminKey },
     body: JSON.stringify({ jumlah }),
   });
+export const importToken = (adminKey, kode) =>
+  request("/api/token/import", {
+    method: "POST",
+    headers: { "x-admin-key": adminKey },
+    body: JSON.stringify({ kode }),
+  });
 export const getSemuaToken = (adminKey) =>
   request("/api/token", { headers: { "x-admin-key": adminKey } });
 
