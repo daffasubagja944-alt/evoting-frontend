@@ -9,8 +9,8 @@ export const API_BASE = import.meta.env?.VITE_API_BASE || "http://localhost:4000
 
 async function request(path, opts = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
     ...opts,
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || data.alasan || "Terjadi kesalahan pada server.");

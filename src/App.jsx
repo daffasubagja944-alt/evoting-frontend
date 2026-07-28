@@ -342,7 +342,6 @@ function TabKandidat({ kandidat, refreshKandidat, pakaiDemo, adminKey }) {
     if (!namaBersih) { setError("Nama kandidat wajib diisi."); return; }
     setLoading(true); setError("");
     const payload = { nomorUrut: Number(form.nomorUrut) || kandidat.length + 1, nama: namaBersih, fotoUrl: (form.fotoUrl || "").trim(), visi: form.visi, misi: bariskan(form.misi), programKerja: bariskan(form.programKerja) };
-    alert("DEBUG - data yang dikirim:\n" + JSON.stringify(payload, null, 2) + "\n\nAdmin key kepakai: " + (adminKey ? adminKey.slice(0, 2) + "***" : "(KOSONG!)"));
     try {
       if (pakaiDemo) { setError("Backend belum konek — perubahan tidak permanen."); }
       else if (editId) { await api.editKandidat(adminKey, editId, payload); }
